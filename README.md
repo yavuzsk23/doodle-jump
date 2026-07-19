@@ -120,7 +120,3 @@ Oyuncu sadece düşer ya da zıplar — elle zıplama girdisi yok. Yer çekimi o
 - Güçlendirmeler (yaylar, jetpack, kalkan)
 - Kalıcı en yüksek skor (dosyaya kaydedilen)
 - Ses efektleri ve arka plan müziği
-
----
-
-**Author:** Yavuz
