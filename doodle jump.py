@@ -9,11 +9,16 @@ GRAVITY = 0.35
 JUMP_STRENGTH = -10
 PLATFORM_COUNT = 10
 
+# --- Platform spacing 
+MIN_PLATFORM_GAP = 40
+MAX_PLATFORM_GAP = 110
+
 # Colors
 BACKGROUND = (248, 248, 216)  # Paper-like color
 PLAYER_COLOR = (161, 204, 59)
 PLATFORM_COLOR = (60, 179, 113)
 TEXT_COLOR = (50, 50, 50)
+
 
 class Player:
     def __init__(self):
@@ -47,6 +52,7 @@ class Player:
         pygame.draw.circle(screen, (0, 0, 0), (int(self.x + 10), int(self.y + 10)), 3)
         pygame.draw.circle(screen, (0, 0, 0), (int(self.x + 20), int(self.y + 10)), 3)
 
+
 class Platform:
     def __init__(self, x, y):
         self.x = x
@@ -57,6 +63,27 @@ class Platform:
     def draw(self, screen):
         pygame.draw.rect(screen, PLATFORM_COLOR, [self.x, self.y, self.width, self.height], 0, 3)
 
+
+def create_initial_platforms():
+    """
+    Creates the starting platforms from top to bottom with controlled gaps,
+    ensuring the player can always reach them (not random/independent).
+    """
+    platforms = [Platform(WIDTH // 2 - 30, HEIGHT - 50)]
+    current_y = HEIGHT - 50
+    for _ in range(PLATFORM_COUNT):
+        current_y -= random.randint(MIN_PLATFORM_GAP, MAX_PLATFORM_GAP)
+        platforms.append(Platform(random.randint(0, WIDTH - 60), current_y))
+    return platforms
+
+
+def spawn_platform_above(platforms):
+    """Generates a new platform above the current top one, within reachable distance."""
+    top_y = min(p.y for p in platforms)
+    new_y = top_y - random.randint(MIN_PLATFORM_GAP, MAX_PLATFORM_GAP)
+    return Platform(random.randint(0, WIDTH - 60), new_y)
+
+
 def main_loop():
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -65,12 +92,7 @@ def main_loop():
     font = pygame.font.SysFont("Arial", 24, bold=True)
 
     player = Player()
-    # First platform under the player
-    platforms = [Platform(WIDTH // 2 - 30, HEIGHT - 50)]
-    
-    # Random starting platforms
-    for i in range(PLATFORM_COUNT):
-        platforms.append(Platform(random.randint(0, WIDTH - 60), random.randint(0, HEIGHT - 100)))
+    platforms = create_initial_platforms()
 
     score = 0
     high_score = 0
@@ -85,11 +107,9 @@ def main_loop():
                 return
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE and game_over:
-                    # Reset
+                    # Reset (high_score is preserved, only game state resets)
                     player = Player()
-                    platforms = [Platform(WIDTH // 2 - 30, HEIGHT - 50)]
-                    for i in range(PLATFORM_COUNT):
-                        platforms.append(Platform(random.randint(0, WIDTH - 60), random.randint(0, HEIGHT - 100)))
+                    platforms = create_initial_platforms()
                     score = 0
                     game_over = False
 
@@ -99,10 +119,10 @@ def main_loop():
             # Platform collision (only when falling down)
             if player.vel_y > 0:
                 for p in platforms:
-                    if (player.x + player.width > p.x and 
-                        player.x < p.x + p.width and 
-                        player.y + player.height > p.y and 
-                        player.y + player.height < p.y + p.height + player.vel_y):
+                    if (player.x + player.width > p.x and
+                            player.x < p.x + p.width and
+                            player.y + player.height > p.y and
+                            player.y + player.height < p.y + p.height + player.vel_y):
                         player.vel_y = JUMP_STRENGTH
                         break
 
@@ -113,10 +133,13 @@ def main_loop():
                 score += int(scroll_amount // 10)
                 for p in platforms:
                     p.y += scroll_amount
-                    # Remove platform if off-screen and spawn new one above
-                    if p.y > HEIGHT:
-                        platforms.remove(p)
-                        platforms.append(Platform(random.randint(0, WIDTH - 60), random.randint(-50, 50)))
+
+            
+                # collect platforms to remove separately first.
+                platforms_to_remove = [p for p in platforms if p.y > HEIGHT]
+                for p in platforms_to_remove:
+                    platforms.remove(p)
+                    platforms.append(spawn_platform_above(platforms))
 
             # Death check
             if player.y > HEIGHT:
@@ -131,7 +154,9 @@ def main_loop():
 
         # UI
         score_text = font.render(f"SCORE: {score}", True, TEXT_COLOR)
+        high_score_text = font.render(f"BEST: {high_score}", True, TEXT_COLOR)
         screen.blit(score_text, (10, 10))
+        screen.blit(high_score_text, (10, 38))
 
         if game_over:
             over_text = font.render("GAME OVER!", True, (200, 0, 0))
@@ -141,6 +166,7 @@ def main_loop():
 
         pygame.display.flip()
         clock.tick(FPS)
+
 
 if __name__ == "__main__":
     main_loop()
